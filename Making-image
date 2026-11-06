@@ -1,1 +1,88 @@
 Steps documented when making the template
+
+(check storage in proxox)
+pvesm status
+
+Name             Type     Status     Total (KiB)      Used (KiB) Available (KiB)        %
+gl-ISO           cifs     active       306549688        82477020       224072668   26.90%
+local             dir     active        98497780        15000464        78447768   15.23%
+local-lvm     lvmthin     active       832356352        57016410       775339941    6.85%
+sdata         lvmthin     active       832356352        57016410       775339941    6.85%
+
+(check if allready installed libguestfs-tools and version)
+
+apt info libguestfs-tools
+
+Package: libguestfs-tools
+Version: 1:1.54.1-2+deb13u1
+(install if not installed or upgrade)
+
+apt update && apt install -y libguestfs-tools
+
+libguestfs-tools is already the newest version (1:1.54.1-2+deb13u1).
+
+(check and cleanup older versions (only same OS version, when template is done and tested this directory can removed)
+mkdir -p /root/images && cd /root/images && wget https://cloud-images.ubuntu.com/releases/releases/stonking/release/ubuntu-26.10-server-cloudimg-amd64.img
+
+2026-11-06 19:14:35 (10.2 MB/s) - ‘ubuntu-26.10-server-cloudimg-amd64.img’ saved [878448640/878448640]
+
+export LIBGUESTFS_BACKEND=direct && virt-customize -a ubuntu-26.10-server-cloudimg-amd64.img --install qemu-guest-agent --run-command 'systemctl enable qemu-guest-agent' --truncate /etc/machine-id
+[   0.0] Examining the guest ...
+[ 148.7] Setting a random seed
+(virt-customize: warning: random seed could not be set for this type of guest (ignore it for img))
+[ 148.8] Setting the machine ID in /etc/machine-id
+[ 148.8] Installing packages: qemu-guest-agent
+[ 184.3] Running: systemctl enable qemu-guest-agent
+[ 184.3] Truncating: /etc/machine-id
+[ 184.3] SELinux relabelling
+[ 188.6] Finishing off
+
+(create the template with settings)
+qm create 9010 --name ubuntu-2610-template --memory 2048 --cores 2 --cpu x86-64-v2-AES --net0 virtio,bridge=vmbr0 --scsihw virtio-scsi-single --ostype l26 --agent enabled=1
+
+(check the storage where you want to put the disk : sdata)
+
+qm set 9010 --scsi0 sdata:0,import-from=/root/images/ubuntu-26.10-server-cloudimg-amd64.img,discard=on,ssd=1
+
+transferred 3.5 GiB of 3.5 GiB (100.00%)
+scsi0: successfully created disk 'sdata:vm-9010-disk-0,discard=on,size=3584M,ssd=1'
+
+qm set 9010 --ide2 sdata:cloudinit
+
+update VM 9010: -ide2 sdata:cloudinit
+  Logical volume "vm-9010-cloudinit" created.
+  Logical volume pve/vm-9010-cloudinit changed.
+ide2: successfully created disk 'sdata:vm-9010-cloudinit,media=cdrom'
+generating cloud-init ISO
+
+qm set 9010 --boot order=scsi0 --serial0 socket --vga serial0
+
+update VM 9010: -boot order=scsi0 -serial0 socket -vga serial0
+
+qm disk resize 9010 scsi0 +30G
+  Size of logical volume pve/vm-9010-disk-0 changed from 3.50 GiB (896 extents) to 33.50 GiB (8576 extents).
+  Logical volume pve/vm-9010-disk-0 successfully resized.
+
+cat $env:USERPROFILE\.ssh\id_ed25519.pub
+vi /root/.ssh/cloudinit_keys.pub
+(putin the pub key or check if its here, can also put in other keys from where you wanna ssh like PI4)
+
+(put in the defaults in the cloudinit part like user ssh-key ipconfig is dhcp)
+qm set 9010 --ciuser el --sshkeys /root/.ssh/cloudinit_keys.pub --ipconfig0 ip=dhcp --ciupgrade 1
+
+qm template 9010
+  Renamed "vm-9010-disk-0" to "base-9010-disk-0" in volume group "pve"
+  Logical volume pve/base-9010-disk-0 changed.
+
+(check the id's in proxmox and select 1 to rage the vm's)
+(the first rest start with start, next ones if its fine can be just created to start when neded)
+
+qm clone 9010 301 --name tst-u2610 --full && qm start 301
+creating a clone of VM 9010 with ID 301
+create full clone of drive ide2 (sdata:vm-9010-cloudinit)
+
+qm guest cmd 301 network-get-interfaces
+
+(displaying the whole config, )
+(I copy and past the mac address when a vm is not started and set a fix ip in the dhcp server)
+(test the 301 vm with ssh el@ip.address from conf and with newer ones without start get the ip from dhcp input)
