@@ -1,7 +1,6 @@
-Proxmox VE
-
-SSH key (local or allready in github)
-
-
-
-using Ubuntu Server 26.04 LTS (cloud image)
+Proxmox VE 9.2.25
+promox storage (names)
+SSH key (local or allready in github)to include on server
+libguestfs-tools (virt-customize command, which opens a disk image and modifies what's inside it)
+get Ubuntu Server 26.10 cloud image (included patch, see https://ubuntu.com/security/CVE-2026-98432)
+Ubuntu 26.10 with 7.3.0-10.10
