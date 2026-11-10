@@ -86,3 +86,5 @@ qm guest cmd 301 network-get-interfaces
 (displaying the whole config, )
 (I copy and past the mac address when a vm is not started and set a fix ip in the dhcp server)
 (test the 301 vm with ssh el@ip.address from conf and with newer ones without start get the ip from dhcp input)
+or setkup manual ip's 
+qm set 301 --ipconfig0 ip=192.168.8.100/24,gw=192.168.1.1 
